@@ -1,7 +1,7 @@
 # litediff
 A directory diff web app
 
-Backend:
+# Get Started
 
 1. pip install Flask
 
