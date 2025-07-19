@@ -14,4 +14,4 @@ A file or directory diff web app
 
 ## Test
 
-4. PYTHONPATH=. pytest tests/test_diff_logic.p
+4. PYTHONPATH=. pytest tests/test_diff_logic.py
