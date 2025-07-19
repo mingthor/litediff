@@ -24,20 +24,39 @@ def index():
     return render_template('index.html')
 
 @app.route('/diff', methods=['POST'])
-def diff_files():
+def diff_logic():
+    """
+    Acts as a controller to determine if the user wants to diff
+    two files or two directories based on the provided paths.
+    """
+    data = request.get_json()
+    path1 = data.get('path1')
+    path2 = data.get('path2')
+
+    if not path1 or not path2:
+        return jsonify({'error': 'Please provide paths for both inputs.'}), 400
+
+    # Check if paths are valid
+    if not os.path.exists(path1):
+        return jsonify({'error': f'Invalid path: {path1}. The path does not exist.'}), 400
+    if not os.path.exists(path2):
+        return jsonify({'error': f'Invalid path: {path2}. The path does not exist.'}), 400
+
+    # Case 1: Both paths are directories
+    if os.path.isdir(path1) and os.path.isdir(path2):
+        return diff_directories(path1, path2)
+
+    # Case 2: Both paths are files
+    if os.path.isfile(path1) and os.path.isfile(path2):
+        return diff_files(path1, path2)
+
+    # Case 3: Mismatched types (e.g., file and directory)
+    return jsonify({'error': 'Mismatched types: Please provide two files or two directories to compare.'}), 400
+
+def diff_directories(dir1, dir2):
     """
     Compares files in two directories and returns the differences.
     """
-    data = request.get_json()
-    dir1 = data.get('dir1')
-    dir2 = data.get('dir2')
-
-    if not dir1 or not dir2:
-        return jsonify({'error': 'Please provide two directories.'}), 400
-
-    if not os.path.isdir(dir1) or not os.path.isdir(dir2):
-        return jsonify({'error': 'Invalid directory path provided. '}), 400
-
     try:
         files1 = get_files_from_directory(dir1)
         files2 = get_files_from_directory(dir2)
@@ -59,7 +78,6 @@ def diff_files():
                 with open(file_path2, 'r', encoding='utf-8', errors='ignore') as f2:
                     lines2 = f2.readlines()
 
-                # Create a side-by-side HTML diff
                 differ = difflib.HtmlDiff(wrapcolumn=80)
                 diff_html = differ.make_table(lines1, lines2, fromdesc=f'File in {dir1}', todesc=f'File in {dir2}')
                 
@@ -89,13 +107,36 @@ def diff_files():
                 'status': 'unique_to_dir2'
             })
 
-
         return jsonify({'diffs': diffs})
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+def diff_files(file1_path, file2_path):
+    """
+    Compares two individual files and returns the difference.
+    """
+    try:
+        with open(file1_path, 'r', encoding='utf-8', errors='ignore') as f1:
+            lines1 = f1.readlines()
+        with open(file2_path, 'r', encoding='utf-8', errors='ignore') as f2:
+            lines2 = f2.readlines()
+        
+        # Use the basename for the display name
+        file_display_name = f"{os.path.basename(file1_path)} vs {os.path.basename(file2_path)}"
+
+        differ = difflib.HtmlDiff(wrapcolumn=80)
+        diff_html = differ.make_table(lines1, lines2, fromdesc=file1_path, todesc=file2_path)
+        
+        diffs = [{
+            'file': file_display_name,
+            'diff': diff_html,
+            'status': 'modified'
+        }]
+
+        return jsonify({'diffs': diffs})
+    except Exception as e:
+        return jsonify({'error': f'Could not compare files: {e}'}), 500
+
 if __name__ == '__main__':
-    # It's recommended to use a production-ready server like Gunicorn or Waitress
-    # For development, the Flask dev server is fine.
     app.run(debug=True)
