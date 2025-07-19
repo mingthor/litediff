@@ -32,6 +32,7 @@ def diff_logic():
     data = request.get_json()
     path1 = data.get('path1')
     path2 = data.get('path2')
+    mode = data.get('mode', 'html')  # Default to 'html' mode
 
     if not path1 or not path2:
         return jsonify({'error': 'Please provide paths for both inputs.'}), 400
@@ -44,16 +45,16 @@ def diff_logic():
 
     # Case 1: Both paths are directories
     if os.path.isdir(path1) and os.path.isdir(path2):
-        return diff_directories(path1, path2)
+        return diff_directories(path1, path2, mode)
 
     # Case 2: Both paths are files
     if os.path.isfile(path1) and os.path.isfile(path2):
-        return diff_files(path1, path2)
+        return diff_files(path1, path2, mode)
 
     # Case 3: Mismatched types (e.g., file and directory)
     return jsonify({'error': 'Mismatched types: Please provide two files or two directories to compare.'}), 400
 
-def diff_directories(dir1, dir2):
+def diff_directories(dir1, dir2, mode):
     """
     Compares files in two directories and returns the differences.
     """
@@ -78,12 +79,17 @@ def diff_directories(dir1, dir2):
                 with open(file_path2, 'r', encoding='utf-8', errors='ignore') as f2:
                     lines2 = f2.readlines()
 
-                differ = difflib.HtmlDiff(wrapcolumn=80)
-                diff_html = differ.make_table(lines1, lines2, fromdesc=f'File in {dir1}', todesc=f'File in {dir2}')
-                
+                if mode == 'html':
+                    differ = difflib.HtmlDiff(wrapcolumn=80)
+                    diff_output = differ.make_table(lines1, lines2, fromdesc=f'File in {dir1}', todesc=f'File in {dir2}')
+                elif mode == 'unified':
+                    diff_output = ''.join(difflib.unified_diff(
+                        lines1, lines2, fromfile=f'File in {dir1}/{file}', tofile=f'File in {dir2}/{file}'
+                    ))
+
                 diffs.append({
                     'file': file,
-                    'diff': diff_html,
+                    'diff': diff_output,
                     'status': 'modified'
                 })
             except Exception as e:
@@ -95,24 +101,64 @@ def diff_directories(dir1, dir2):
         
         # Handle files only in directory 1
         for file in unique_to_dir1:
-             diffs.append({
-                'file': file,
-                'status': 'unique_to_dir1'
-            })
+            if mode == 'unified':
+                file_path1 = os.path.join(dir1, file)
+                try:
+                    with open(file_path1, 'r', encoding='utf-8', errors='ignore') as f1:
+                        lines1 = f1.readlines()
+                    diff_output = ''.join(difflib.unified_diff(
+                        lines1, [], fromfile=f'File in {dir1}/{file}', tofile=f'/dev/null'
+                    ))
+                    diffs.append({
+                        'file': file,
+                        'diff': diff_output,
+                        'status': 'unique_to_dir1'
+                    })
+                except Exception as e:
+                    diffs.append({
+                        'file': file,
+                        'error': f'Could not read file: {e}',
+                        'status': 'error'
+                    })
+            else:
+                diffs.append({
+                    'file': file,
+                    'status': 'unique_to_dir1'
+                })
 
         # Handle files only in directory 2
         for file in unique_to_dir2:
-            diffs.append({
-                'file': file,
-                'status': 'unique_to_dir2'
-            })
+            if mode == 'unified':
+                file_path2 = os.path.join(dir2, file)
+                try:
+                    with open(file_path2, 'r', encoding='utf-8', errors='ignore') as f2:
+                        lines2 = f2.readlines()
+                    diff_output = ''.join(difflib.unified_diff(
+                        [], lines2, fromfile=f'/dev/null', tofile=f'File in {dir2}/{file}'
+                    ))
+                    diffs.append({
+                        'file': file,
+                        'diff': diff_output,
+                        'status': 'unique_to_dir2'
+                    })
+                except Exception as e:
+                    diffs.append({
+                        'file': file,
+                        'error': f'Could not read file: {e}',
+                        'status': 'error'
+                    })
+            else:
+                diffs.append({
+                    'file': file,
+                    'status': 'unique_to_dir2'
+                })
 
         return jsonify({'diffs': diffs})
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-def diff_files(file1_path, file2_path):
+def diff_files(file1_path, file2_path, mode):
     """
     Compares two individual files and returns the difference.
     """
@@ -125,12 +171,17 @@ def diff_files(file1_path, file2_path):
         # Use the basename for the display name
         file_display_name = f"{os.path.basename(file1_path)} vs {os.path.basename(file2_path)}"
 
-        differ = difflib.HtmlDiff(wrapcolumn=80)
-        diff_html = differ.make_table(lines1, lines2, fromdesc=file1_path, todesc=file2_path)
+        if mode == 'html':
+            differ = difflib.HtmlDiff(wrapcolumn=80)
+            diff_output = differ.make_table(lines1, lines2, fromdesc=file1_path, todesc=file2_path)
+        elif mode == 'unified':
+            diff_output = ''.join(difflib.unified_diff(
+                lines1, lines2, fromfile=file1_path, tofile=file2_path
+            ))
         
         diffs = [{
             'file': file_display_name,
-            'diff': diff_html,
+            'diff': diff_output,
             'status': 'modified'
         }]
 

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>File & Directory Diff Tool</title>
+    <title>LiteDiff</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -63,8 +63,7 @@
 
     <div class="container mx-auto p-4 md:p-8">
         <header class="text-center mb-8">
-            <h1 class="text-4xl font-bold text-gray-900">LiteDiff</h1>
-            <p class="text-lg text-gray-600 mt-2">Compare files or directories side-by-side.</p>
+            <h1 class="text-4xl font-bold text-gray-900">Diff Files or Directories</h1>
         </header>
 
         <div class="bg-white p-6 rounded-lg shadow-lg mb-8">
@@ -79,6 +78,11 @@
                 </div>
             </div>
             <div class="mt-6 text-center">
+                <label for="mode" class="block text-sm font-medium text-gray-700 mb-2">Select Diff Mode:</label>
+                <select id="mode" name="mode" class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 mb-4">
+                    <option value="html">HTML Diff</option>
+                    <option value="unified">Unified Diff</option>
+                </select>
                 <button id="compareBtn" class="bg-indigo-600 text-white font-bold py-3 px-6 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-300">
                     <i class="fas fa-exchange-alt mr-2"></i>Compare Paths
                 </button>
@@ -100,11 +104,16 @@
         <div id="results" class="space-y-6"></div>
 
     </div>
+    
+    <!-- CSS for Diff2Html -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/diff2html/bundles/css/diff2html.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/diff2html/bundles/js/diff2html.min.js"></script>
 
     <script>
         document.getElementById('compareBtn').addEventListener('click', async () => {
             const path1 = document.getElementById('path1').value.trim();
             const path2 = document.getElementById('path2').value.trim();
+            const mode = document.getElementById('mode').value;
             const resultsDiv = document.getElementById('results');
             const loader = document.getElementById('loader');
             const errorMessage = document.getElementById('error-message');
@@ -129,7 +138,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ path1, path2 }),
+                    body: JSON.stringify({ path1, path2, mode }),
                 });
 
                 const data = await response.json();
@@ -137,8 +146,12 @@
                 if (!response.ok) {
                     throw new Error(data.error || 'An unknown error occurred.');
                 }
-                
-                displayResults(data.diffs);
+
+                if (mode === 'html') {
+                    displayResults(data.diffs);
+                } else if (mode === 'unified') {
+                    displayUnifiedDiffs(data.diffs);
+                }
 
             } catch (error) {
                 errorText.textContent = error.message;
@@ -198,6 +211,30 @@
                     </div>
                     ${contentHtml}
                 `;
+                resultsDiv.appendChild(fileContainer);
+            });
+        }
+
+        function displayUnifiedDiffs(diffs) {
+            const resultsDiv = document.getElementById('results');
+            if (diffs.length === 0) {
+                resultsDiv.innerHTML = '<div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-md"><p class="font-bold">No differences found!</p><p>The directories are identical or no common files were found.</p></div>';
+                return;
+            }
+
+            diffs.forEach(item => {
+                const fileContainer = document.createElement('div');
+                fileContainer.className = 'bg-white p-4 rounded-lg shadow-md';
+
+                if (item.diff && item.diff.trim() !== '') {
+                    const diffHtml = Diff2Html.html(item.diff, { drawFileList: false, matching: 'lines', outputFormat: 'side-by-side' });
+                    fileContainer.innerHTML = `<div class="overflow-x-auto">${diffHtml}</div>`;
+                } else if (item.diff && item.diff.trim() === '') {
+                    fileContainer.innerHTML = `<div class='text-green-700'>No differences found in <b>${item.file}</b>.</div>`;
+                } else if (item.error) {
+                    fileContainer.innerHTML = `<div class="mt-4 text-red-600 font-mono">${item.error}</div>`;
+                }
+
                 resultsDiv.appendChild(fileContainer);
             });
         }
