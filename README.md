@@ -13,11 +13,11 @@ A file or directory diff web app
 1. `pip install Flask`
 
 ## Run App
-1. `python app.py`
+1. `python app.py` or `python litediff/app.py --path1 /path1 --path2 /path2`
 2. Open browser on http://127.0.0.1:5000
 
 ## Test
-1. `PYTHONPATH=. pytest litediff/tests/test_diff_logic.py`
+1. `PYTHONPATH=. pytest litediff/tests`
 
 ## Publish
 

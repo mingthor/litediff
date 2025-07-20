@@ -1,8 +1,17 @@
 import os
 from flask import Flask, render_template, request, jsonify
 import difflib
+import argparse
 
 app = Flask(__name__)
+
+# Global variables to store CLI diff arguments
+cli_diff_args = {
+    'path1': None,
+    'path2': None,
+    'mode': 'unified',
+    'include_unique': False
+}
 
 def get_files_from_directory(directory):
     """
@@ -19,9 +28,17 @@ def get_files_from_directory(directory):
 @app.route('/')
 def index():
     """
-    Renders the main HTML page.
+    Always render the main HTML page. If CLI args are set, inject them for the frontend JS to auto-fetch and display the diff.
     """
-    return render_template('index.html')
+    cli_args = None
+    if cli_diff_args['path1'] and cli_diff_args['path2']:
+        cli_args = {
+            'path1': cli_diff_args['path1'],
+            'path2': cli_diff_args['path2'],
+            'mode': cli_diff_args['mode'],
+            'includeUnique': cli_diff_args['include_unique']
+        }
+    return render_template('index.html', cli_args=cli_args)
 
 def diff_directories(dir1, dir2, mode, include_unique=False):
     """
@@ -111,6 +128,22 @@ def handle_unique_file(file, dir_path, mode, status, diffs, is_dir1):
             'status': 'error'
         })
 
+def handle_diff(path1, path2, mode, include_unique):
+    """
+    Shared logic for diff endpoints. Returns a Flask response.
+    """
+    if not path1 or not path2:
+        return jsonify({'error': 'Please provide paths for both inputs.'}), 400
+    if not os.path.exists(path1):
+        return jsonify({'error': f'Invalid path: {path1}. The path does not exist.'}), 400
+    if not os.path.exists(path2):
+        return jsonify({'error': f'Invalid path: {path2}. The path does not exist.'}), 400
+    if os.path.isdir(path1) and os.path.isdir(path2):
+        return diff_directories(path1, path2, mode, include_unique)
+    if os.path.isfile(path1) and os.path.isfile(path2):
+        return diff_files(path1, path2, mode)
+    return jsonify({'error': 'Mismatched types: Please provide two files or two directories to compare.'}), 400
+
 @app.route('/diff', methods=['POST'])
 def diff_logic():
     """
@@ -121,27 +154,8 @@ def diff_logic():
     path1 = data.get('path1')
     path2 = data.get('path2')
     mode = data.get('mode', 'html')  # Default to 'html' mode
-    include_unique = data.get('includeUnique', False) 
-
-    if not path1 or not path2:
-        return jsonify({'error': 'Please provide paths for both inputs.'}), 400
-
-    # Check if paths are valid
-    if not os.path.exists(path1):
-        return jsonify({'error': f'Invalid path: {path1}. The path does not exist.'}), 400
-    if not os.path.exists(path2):
-        return jsonify({'error': f'Invalid path: {path2}. The path does not exist.'}), 400
-
-    # Case 1: Both paths are directories
-    if os.path.isdir(path1) and os.path.isdir(path2):
-        return diff_directories(path1, path2, mode, include_unique)
-
-    # Case 2: Both paths are files
-    if os.path.isfile(path1) and os.path.isfile(path2):
-        return diff_files(path1, path2, mode)
-
-    # Case 3: Mismatched types (e.g., file and directory)
-    return jsonify({'error': 'Mismatched types: Please provide two files or two directories to compare.'}), 400
+    include_unique = data.get('includeUnique', False)
+    return handle_diff(path1, path2, mode, include_unique)
 
 def diff_files(file1_path, file2_path, mode):
     """
@@ -176,9 +190,24 @@ def diff_files(file1_path, file2_path, mode):
 
 def main():
     """
-    Main function to run the Flask app.
+    Main function to run the Flask app or serve a diff from CLI args.
     """
-    app.run(debug=True)
+    parser = argparse.ArgumentParser(description='LiteDiff - Directory and File Diff Tool')
+    parser.add_argument('--path1', type=str, help='First file or directory to compare')
+    parser.add_argument('--path2', type=str, help='Second file or directory to compare')
+    parser.add_argument('--mode', type=str, choices=['html', 'unified'], default='unified', help='Diff mode (html or unified)')
+    parser.add_argument('--include-unique', action='store_true', help='Include unique files when diffing directories')
+    parser.add_argument('--host', type=str, default='0.0.0.0', help='Flask host')
+    parser.add_argument('--port', type=int, default=5000, help='Flask port')
+    args = parser.parse_args()
+
+    # Store CLI args
+    cli_diff_args['path1'] = args.path1
+    cli_diff_args['path2'] = args.path2
+    cli_diff_args['mode'] = args.mode
+    cli_diff_args['include_unique'] = args.include_unique
+
+    app.run(host=args.host, port=args.port)
 
 if __name__ == '__main__':
     main()

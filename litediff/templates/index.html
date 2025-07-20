@@ -60,7 +60,10 @@
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
-
+    <script type="text/javascript">
+        // Injected CLI args from Flask
+        const cliArgs = {{ cli_args|tojson|safe }};
+    </script>
     <div class="container mx-auto p-4 md:p-8">
         <header class="text-center mb-8">
             <h1 class="text-2xl font-bold text-gray-900">Diff files or directories side-by-side</h1>
@@ -167,6 +170,41 @@
             }
         });
 
+        async function fetchAndDisplayCliDiff() {
+            if (!cliArgs || !cliArgs.path1 || !cliArgs.path2) return;
+            // Set form fields
+            document.getElementById('path1').value = cliArgs.path1;
+            document.getElementById('path2').value = cliArgs.path2;
+            document.getElementById('unifiedMode').checked = cliArgs.mode === 'unified';
+            document.getElementById('includeUnique').checked = !!cliArgs.includeUnique;
+            // Show loader
+            document.getElementById('loader').classList.remove('hidden');
+            try {
+                const response = await fetch('/diff', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        path1: cliArgs.path1,
+                        path2: cliArgs.path2,
+                        mode: cliArgs.mode,
+                        includeUnique: cliArgs.includeUnique
+                    })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'An unknown error occurred.');
+                if (cliArgs.mode === 'html') {
+                    displayResults(data.diffs);
+                } else if (cliArgs.mode === 'unified') {
+                    displayUnifiedDiffs(data.diffs);
+                }
+            } catch (error) {
+                document.getElementById('error-text').textContent = error.message;
+                document.getElementById('error-message').classList.remove('hidden');
+            } finally {
+                document.getElementById('loader').classList.add('hidden');
+            }
+        }
+
         function displayResults(diffs) {
             const resultsDiv = document.getElementById('results');
             if (diffs.length === 0) {
@@ -245,6 +283,8 @@
                 resultsDiv.appendChild(fileContainer);
             });
         }
+
+        window.addEventListener('DOMContentLoaded', fetchAndDisplayCliDiff);
     </script>
 </body>
 </html>
