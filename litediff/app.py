@@ -174,5 +174,11 @@ def diff_files(file1_path, file2_path, mode):
     except Exception as e:
         return jsonify({'error': f'Could not compare files: {e}'}), 500
 
-if __name__ == '__main__':
+def main():
+    """
+    Main function to run the Flask app.
+    """
     app.run(debug=True)
+
+if __name__ == '__main__':
+    main()

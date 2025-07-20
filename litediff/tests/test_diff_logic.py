@@ -2,7 +2,7 @@ import os
 import tempfile
 import shutil
 import pytest
-from app import diff_directories, app
+from ..app import diff_directories, app
 
 def create_file(path, content):
     with open(path, 'w', encoding='utf-8') as f:
