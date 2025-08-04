@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lite Diff</title>
+    <link href="./main.css" rel="stylesheet">
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@vscode/webview-ui-toolkit/dist/toolkit.js"></script>
+</head>
+<body>
+    <h1>Lite Diff Comparison</h1>
+
+    <div class="input-group">
+        <vscode-text-field id="pathA" placeholder="Path A (file or folder)" class="path-input"></vscode-text-field>
+        <vscode-button id="browseA">Browse...</vscode-button>
+    </div>
+
+    <div class="input-group">
+        <vscode-text-field id="pathB" placeholder="Path B (file or folder)" class="path-input"></vscode-text-field>
+        <vscode-button id="browseB">Browse...</vscode-button>
+    </div>
+
+    <vscode-button id="compare-button">Compare</vscode-button>
+
+    <div id="results-container"></div>
+
+    <script src="./main.js"></script>
+</body>
+</html>

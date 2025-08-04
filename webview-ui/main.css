@@ -1,0 +1,68 @@
+body {
+    font-family: var(--vscode-font-family);
+    font-size: var(--vscode-font-size);
+    color: var(--vscode-foreground);
+    background-color: var(--vscode-editor-background);
+    padding: 20px;
+}
+
+h1 {
+    color: var(--vscode-editor-foreground);
+    margin-bottom: 20px;
+}
+
+.input-group {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.path-input {
+    flex-grow: 1;
+    margin-right: 10px;
+}
+
+vscode-button {
+    white-space: nowrap;
+}
+
+#compare-button {
+    margin-top: 20px;
+    width: 100%;
+}
+
+#results-container {
+    margin-top: 30px;
+    border-top: 1px solid var(--vscode-editorGroup-border);
+    padding-top: 20px;
+}
+
+/* Basic styling for results - will be enhanced later */
+.diff-result-item {
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--vscode-editorGroup-border);
+}
+
+.diff-result-item:last-child {
+    border-bottom: none;
+}
+
+.status-unchanged {
+    color: var(--vscode-editor-foreground);
+}
+
+.status-modified {
+    color: var(--vscode-editorWarning-foreground);
+}
+
+.status-added {
+    color: var(--vscode-gitDecoration-addedResourceForeground);
+}
+
+.status-deleted {
+    color: var(--vscode-gitDecoration-deletedResourceForeground);
+}
+
+.status-conflict {
+    color: var(--vscode-editorError-foreground);
+}
